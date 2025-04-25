@@ -34,7 +34,6 @@ public class OAuth2UserCustomService extends DefaultOAuth2UserService {
 
         String email = (String) attributes.get("email");
         String name = (String) attributes.get("name");
-
         String password = passwordEncoder.encode(UUID.randomUUID().toString());
 
         User user = userRepository.findByEmail(email)
