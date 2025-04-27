@@ -10,13 +10,16 @@ import com.mysite.springbootdeveloper.repository.RefreshTokenRepository;
 import com.mysite.springbootdeveloper.service.UserService;
 import com.mysite.springbootdeveloper.util.CookieUtil;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @Component
@@ -35,10 +38,28 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-        User user = userService.findByEmail((String) oAuth2User.getAttributes().get("email"));
+        Map<String, Object> attributes = oAuth2User.getAttributes();
+
+
+        String provider = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+
+        String email = "";
+
+        if ("kakao".equals(provider)) {
+            Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
+            email = (String) kakaoAccount.get("email");
+        }
+        else {
+            email = (String) attributes.get("email");
+        }
+
+        System.out.println(provider + email);
+
+        User user = userService.findByEmailAndProvider(email, provider);
+
 
         String refreshToken = tokenProvider.generateToken(user, REFRESH_TOKEN_DURATION);
-        saveRefreshToken(user.getId(), refreshToken);
+        saveRefreshToken(user, refreshToken);
         addRefreshTokenToCookie(request, response, refreshToken);
 
         String accessToken = tokenProvider.generateToken(user, ACCESS_TOKEN_DURATION);
@@ -49,12 +70,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 
-    private void saveRefreshToken(Long userId, String newRefreshToken) {
-        RefreshToken refreshToken = refreshTokenRepository.findByUserId(userId)
+    private void saveRefreshToken(User user, String newRefreshToken) {
+        RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
                 .map(entity -> entity.update(newRefreshToken))
-                .orElse(new RefreshToken(userId, newRefreshToken));
-
+                .orElse(new RefreshToken(user, newRefreshToken));
+        System.out.println("Saved refresh token: " + refreshToken.getUser());
         refreshTokenRepository.save(refreshToken);
+
     }
 
     private void addRefreshTokenToCookie(HttpServletRequest request, HttpServletResponse response, String refreshToken) {
