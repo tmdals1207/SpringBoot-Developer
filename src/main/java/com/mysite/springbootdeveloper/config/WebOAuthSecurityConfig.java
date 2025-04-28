@@ -40,7 +40,12 @@ public class WebOAuthSecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .formLogin(AbstractHttpConfigurer::disable)
+                .formLogin(form -> form
+                        .loginPage("/login") // 로그인 폼 경로 (GET)
+                        .loginProcessingUrl("/login") // 로그인 처리 경로 (POST) -- 이게 매우 중요
+                        .defaultSuccessUrl("/articles", true) // 로그인 성공시 이동할 페이지
+                        .failureUrl("/login") // 로그인 실패시 이동할 페이지
+                )
                 .logout(AbstractHttpConfigurer::disable);
 
         http
