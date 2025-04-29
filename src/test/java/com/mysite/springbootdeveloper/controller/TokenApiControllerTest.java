@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -72,8 +73,8 @@ class TokenApiControllerTest {
                 .claims(Map.of("id", testUser.getId()))
                 .build()
                 .createToken(jwtProperties);
-
-        refreshTokenRepository.save(new RefreshToken(testUser, refreshToekn));
+        LocalDateTime expiredAt = LocalDateTime.now().plusDays(14);
+        refreshTokenRepository.save(new RefreshToken(testUser, refreshToekn, expiredAt));
 
         CreateAccessTokenRequest request = new CreateAccessTokenRequest();
         request.setRefreshToken(refreshToekn);
