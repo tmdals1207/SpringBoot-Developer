@@ -38,7 +38,7 @@ public class User implements UserDetails {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private RefreshToken refreshToken;
 
-    //TODO 유저 프로필 기능 추가 ex) profilImage, 팔로우, 팔로워
+    //TODO 유저 프로필 기능 추가 ex) profileImage, 팔로우, 팔로워
 
     @Builder
     public User(String email, String password, String nickname, String provider, RefreshToken refreshToken) {
