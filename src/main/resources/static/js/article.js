@@ -91,7 +91,7 @@ function getCookie(key) {
 function httpRequest(method, url, body, success, fail) {
     fetch(url, {
         method: method,
-        headers: { // 로컬 스토리지에서 액세스 토큰 값을 가져와 헤더에 추가
+        headers: {
             Authorization: 'Bearer ' + localStorage.getItem('access_token'),
             'Content-Type': 'application/json',
         },
@@ -100,8 +100,11 @@ function httpRequest(method, url, body, success, fail) {
         if (response.status === 200 || response.status === 201) {
             return success();
         }
+
         const refresh_token = getCookie('refresh_token');
+
         if (response.status === 401 && refresh_token) {
+            // 액세스 토큰 재발급 시도
             fetch('/api/token', {
                 method: 'POST',
                 headers: {
@@ -109,21 +112,45 @@ function httpRequest(method, url, body, success, fail) {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    refreshToken: getCookie('refresh_token'),
+                    refreshToken: refresh_token,
                 }),
             })
                 .then(res => {
                     if (res.ok) {
                         return res.json();
+                    } else {
+                        // 재발급 실패: 토큰 삭제 후 로그인 페이지 이동
+                        handleTokenError();
                     }
                 })
-                .then(result => { // 재발급이 성공하면 로컬 스토리지값을 새로운 액세스 토큰으로 교체
+                .then(result => {
+                    if (!result) return; // 위에서 실패 처리함
+
+                    // 재발급 성공
                     localStorage.setItem('access_token', result.accessToken);
                     httpRequest(method, url, body, success, fail);
                 })
-                .catch(error => fail());
+                .catch(error => {
+                    handleTokenError();
+                });
         } else {
-            return fail();
+            // 401이지만 리프레시 토큰도 없으면 바로 로그인 페이지로
+            if (response.status === 401) {
+                handleTokenError();
+            } else {
+                return fail();
+            }
         }
+    }).catch(error => {
+        console.error(error);
+        fail();
     });
+}
+
+// 토큰 에러 처리: 토큰 삭제 후 로그인 페이지 이동
+function handleTokenError() {
+    localStorage.removeItem('access_token'); // 로컬 스토리지 토큰 삭제
+    document.cookie = 'refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;'; // 리프레시 토큰 쿠키 삭제 (유닉스 시간 0초)
+    alert('세션이 만료되었습니다. 다시 로그인 해주세요.');
+    window.location.href = '/login'; // 로그인 페이지로 이동 (경로는 본인 사이트에 맞게 수정!)
 }
