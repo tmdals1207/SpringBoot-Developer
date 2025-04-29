@@ -19,6 +19,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @RequiredArgsConstructor
@@ -43,7 +44,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         String provider = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
 
-        String email = "";
+        String email;
 
         if ("kakao".equals(provider)) {
             Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
@@ -71,13 +72,15 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     }
 
     private void saveRefreshToken(User user, String newRefreshToken) {
+        LocalDateTime expiredAt = LocalDateTime.now().plusDays(14); // REFRESH_TOKEN_DURATION과 일치시킴
+
         RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
-                .map(entity -> entity.update(newRefreshToken))
-                .orElse(new RefreshToken(user, newRefreshToken));
+                .map(entity -> entity.update(newRefreshToken, expiredAt))
+                .orElse(new RefreshToken(user, newRefreshToken, expiredAt));
         System.out.println("Saved refresh token: " + refreshToken.getUser());
         refreshTokenRepository.save(refreshToken);
-
     }
+
 
     private void addRefreshTokenToCookie(HttpServletRequest request, HttpServletResponse response, String refreshToken) {
         int cookieMaxAge = (int) REFRESH_TOKEN_DURATION.toSeconds();
